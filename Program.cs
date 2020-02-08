@@ -1,13 +1,10 @@
-﻿using Standart.Hash.xxHash;
+﻿using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
-using System.Net.Mime;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+using System.Reflection.Metadata;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 using WhereTheFile.Windows;
@@ -30,6 +27,8 @@ namespace WhereTheFile
             Console.WriteLine("i) Generate GUIDs for drives (requires Admin the first time around)");
             Console.WriteLine("s) Scan all drives");
             Console.WriteLine("ss) Scan specific drive only");
+            Console.WriteLine("t) Show database statistics");
+            Console.WriteLine("d) Show duplicates");
             Console.WriteLine("b) Backup scan database");
             Console.WriteLine("q) Exit");
             Console.WriteLine("Choice? ");
@@ -52,6 +51,14 @@ namespace WhereTheFile
                     BackupDatabase();
                     Menu();
                     break;
+                case "d":
+                    ShowDuplicates();
+                    Menu();
+                    break;
+                case "t":
+                    ShowStatistics();
+                    Menu();
+                    break;
                 case "q":
                     Environment.Exit(0);
                     break;
@@ -61,6 +68,61 @@ namespace WhereTheFile
                     Menu();
                     break;
             }
+        }
+
+        private static void ShowDuplicates()
+        {
+            var context = new WTFContext();
+
+            /*  This was fun.
+                The inner query selects COUNT(Size) to get 'unique' filesizes.
+                PARTITION BY gives us the corresponding rows back so that I can actually identify duplicates
+                https://www.sqlshack.com/sql-partition-by-clause-overview/
+                https://www.sqlite.org/windowfunctions.html#the_partition_by_clause
+
+                group_concat probably means I can never move away from SQLite - it allows me to grab the duplicate IDs and put them into a single column,
+                separated by commas (sue me, this is easier than working out a one-to-many table for this)
+
+                It's possible the extra WINDOW isn't needed here and you can have two groups without it, but I couldn't get this working.
+             */
+
+            context.Duplicates.FromSqlRaw("DELETE FROM Duplicates");
+
+            string couldYouDoThisInLinq = @"
+            INSERT INTO Duplicates (FullPath, Size, DriveId, DuplicateCount, DuplicateIds)
+            SELECT FullPath, Size, DriveId, DuplicateCount, DuplicateIds FROM 
+            (SELECT Id, FullPath, Size, DriveId, Count(Size) 
+            OVER (PARTITION BY Size) AS DuplicateCount, 
+            group_concat(Id,',') OVER win AS DuplicateIds 
+            FROM (SELECT Id, FullPath, Size, DriveId FROM FilePaths Where SIZE >= (1024*1024*5)) 
+            WINDOW win AS (PARTITION by Size)) 
+            WHERE DuplicateCount > 1
+";
+           context.Duplicates.FromSqlRaw(couldYouDoThisInLinq);
+
+           var dupes = context.Duplicates.OrderByDescending(d=> d.Size).Take(10);
+
+           foreach (var dupe in dupes)
+           {
+               Console.WriteLine($"{dupe.Size / 1024 / 1024} megabytes: {dupe.FullPath}");
+           }
+        }
+
+        private static void ShowStatistics()
+        {
+            var context = new WTFContext();
+            
+            float totalSize = context.FilePaths.Sum(f => f.Size);
+            var totalFiles = context.FilePaths.Count();
+            var largestFile = context.FilePaths.OrderByDescending(f=>f.Size).First();
+
+
+            Console.WriteLine();
+            Console.WriteLine("Statistics:");
+            Console.WriteLine($"{totalFiles} files indexed with a combined size of {(totalSize / 1024 / 1024)} megabytes ({totalSize / 1024 / 1024 / 1024} or {(totalSize / 1024 / 1024 / 1024 / 1024)} terabytes)");
+            Console.WriteLine($"The largest file indexed is {largestFile.FullPath} at {(largestFile.Size / 1024 / 1024)} megabytes");
+            Console.WriteLine();
+            Menu();
         }
 
         private static void BackupDatabase()
@@ -130,7 +192,7 @@ namespace WhereTheFile
         {
             DriveInfo drive = ScannedDrives.First(d => path.StartsWith(d.CurrentDriveLetter));
             WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
-            int baseBuffer = 8192;
+
             FileSystemEnumerable<ScannedFileInfo> fse =
                 new FileSystemEnumerable<ScannedFileInfo>(path,
                     (ref FileSystemEntry entry) => new ScannedFileInfo() {FullPath = entry.ToFullPath(), Size = entry.Length, Drive = drive},
