@@ -14,7 +14,6 @@ namespace WhereTheFile
 {
     class Program
     {
-
         private static string[] drives;
         private static List<DriveInfo> ScannedDrives;
         static void Main(string[] args)
@@ -28,6 +27,7 @@ namespace WhereTheFile
             Console.WriteLine("s) Scan all drives");
             Console.WriteLine("ss) Scan specific drive only");
             Console.WriteLine("t) Show database statistics");
+            Console.WriteLine("f) Find file");
             Console.WriteLine("d) Show duplicates");
             Console.WriteLine("b) Backup scan database");
             Console.WriteLine("q) Exit");
@@ -55,6 +55,10 @@ namespace WhereTheFile
                     ShowDuplicates();
                     Menu();
                     break;
+                case "f":
+                    FindFiles();
+                    Menu();
+                    break;
                 case "t":
                     ShowStatistics();
                     Menu();
@@ -70,44 +74,64 @@ namespace WhereTheFile
             }
         }
 
-        private static void ShowDuplicates()
+        private static void FindFiles()
         {
             var context = new WTFContext();
 
-            /*  This was fun.
-                The inner query selects COUNT(Size) to get 'unique' filesizes.
-                PARTITION BY gives us the corresponding rows back so that I can actually identify duplicates
-                https://www.sqlshack.com/sql-partition-by-clause-overview/
-                https://www.sqlite.org/windowfunctions.html#the_partition_by_clause
+            Console.WriteLine();
+            Console.WriteLine("Enter all or part of the path, or Enter to get back to the menu: ");
 
-                group_concat probably means I can never move away from SQLite - it allows me to grab the duplicate IDs and put them into a single column,
-                separated by commas (sue me, this is easier than working out a one-to-many table for this)
+            var search = Console.ReadLine().Trim();
 
-                It's possible the extra WINDOW isn't needed here and you can have two groups without it, but I couldn't get this working.
-             */
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                Menu();
+            }
 
-            context.Duplicates.FromSqlRaw("DELETE FROM Duplicates");
+            var results = context.FilePaths.Where(r => r.FullPath.Contains(search)).OrderByDescending(r => r.Size).AsEnumerable().GroupBy(r => r.Size);
 
-            string couldYouDoThisInLinq = @"
-            INSERT INTO Duplicates (FullPath, Size, DriveId, DuplicateCount, DuplicateIds)
-            SELECT FullPath, Size, DriveId, DuplicateCount, DuplicateIds FROM 
-            (SELECT Id, FullPath, Size, DriveId, Count(Size) 
-            OVER (PARTITION BY Size) AS DuplicateCount, 
-            group_concat(Id,',') OVER win AS DuplicateIds 
-            FROM (SELECT Id, FullPath, Size, DriveId FROM FilePaths Where SIZE >= (1024*1024*5)) 
-            WINDOW win AS (PARTITION by Size)) 
-            WHERE DuplicateCount > 1
-";
-           context.Duplicates.FromSqlRaw(couldYouDoThisInLinq);
-
-           var dupes = context.Duplicates.OrderByDescending(d=> d.Size).Take(10);
-
-           foreach (var dupe in dupes)
-           {
-               Console.WriteLine($"{dupe.Size / 1024 / 1024} megabytes: {dupe.FullPath}");
-           }
+            foreach (var result in results)
+            {
+                string filename = result.First().FullPath.Split("\\").Last();
+                float megabytes = result.First().Size / 1024 / 1024;
+                Console.WriteLine($"{filename} ({megabytes} MB):");
+                foreach (var file in result)
+                {
+                    Console.WriteLine($"\t{file.FullPath}");
+                }
+            }
+            Console.WriteLine();
+            FindFiles();
         }
 
+        private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
+        {
+            var context = new WTFContext();
+            var dupes = context.FilePaths.Where(d => d.Size > 1024 * 1024 * 5).AsEnumerable()
+                .OrderByDescending(r => r.Size).GroupBy(r => r.Size)
+                .Where(g => g.Count() > 1);
+
+
+            if (orderByNumberOfDuplicates)
+            {
+                dupes = dupes.OrderByDescending(g => g.Count());
+            }
+            
+            foreach (var dupe in dupes)
+            {
+                //TODO: handle filenames much smarter than this
+                string filename = dupe.First().FullPath.Split("\\").Last();
+                float megabytes = dupe.First().Size / 1024 / 1024;
+                Console.WriteLine($"{filename} ({megabytes} MB):");
+                foreach (var entry in dupe)
+                {
+                    Console.WriteLine(entry.FullPath);
+                }
+                
+                Console.WriteLine();
+            }
+        }
+        
         private static void ShowStatistics()
         {
             var context = new WTFContext();
@@ -115,7 +139,6 @@ namespace WhereTheFile
             float totalSize = context.FilePaths.Sum(f => f.Size);
             var totalFiles = context.FilePaths.Count();
             var largestFile = context.FilePaths.OrderByDescending(f=>f.Size).First();
-
 
             Console.WriteLine();
             Console.WriteLine("Statistics:");
@@ -226,11 +249,6 @@ namespace WhereTheFile
 
             return scannedDrives;
         }
-
-
-
-
-
     }
 }
 

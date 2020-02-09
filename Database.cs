@@ -9,13 +9,13 @@ namespace WhereTheFile.Database
     {
 
         //public static readonly Microsoft.Extensions.Logging.LoggerFactory _myLoggerFactory =
-        //    new LoggerFactory(new[] {new Microsoft.Extensions.Logging.Debug.DebugLoggerProvider()},
-        //        new LoggerFilterOptions() {MinLevel = LogLevel.Information});
+        //    new LoggerFactory(new[] { new Microsoft.Extensions.Logging.Debug.DebugLoggerProvider() },
+        //        new LoggerFilterOptions() { MinLevel = LogLevel.Information });
 
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-           //optionsBuilder.UseLoggerFactory(_myLoggerFactory);
+            //optionsBuilder.UseLoggerFactory(_myLoggerFactory);
 
             if (!optionsBuilder.IsConfigured)
             {
