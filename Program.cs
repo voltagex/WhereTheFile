@@ -257,6 +257,7 @@ namespace WhereTheFile
         {
             //This is far easier than trying to get the drive serial number, but I guess I'll have to do that eventually
             List<DriveInfo> scannedDrives = new List<DriveInfo>();
+            drives = System.IO.Directory.GetLogicalDrives();
             foreach (string drive in drives)
             {
                 string guid = String.Empty;
