@@ -26,6 +26,8 @@ Hopefully a multi-machine file indexer for home users
 
 * Multiple machine support - probably just adding a database column to track which hostname the scan came from
 
-* Better / different UIs - at the moment it's an old school console app, which I like but it might also need non-interactive modes and something like a web UI.
+* Better / different UIs - at the moment it's an old school console app, which I like but it might also need non-interactive modes and something like a web UI. https://github.com/TomaszRewak/C-sharp-console-gui-framework is really tempting.
+
+* Separate out the scanning and UI code
 
 * Ability to update database without doing a full rescan
