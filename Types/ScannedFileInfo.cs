@@ -19,5 +19,7 @@ namespace WhereTheFile.Types
         public string DriveId { get; set; }
 
         public DriveInfo Drive { get; set; }
+
+        public FileAttributes Attributes { get; set; }
     }
 }

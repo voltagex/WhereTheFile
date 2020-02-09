@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Reflection.Metadata;
+using Microsoft.Extensions.Configuration;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 using WhereTheFile.Windows;
@@ -16,9 +17,18 @@ namespace WhereTheFile
     {
         private static string[] drives;
         private static List<DriveInfo> ScannedDrives;
+        private static Settings Settings = new Settings();
+        private static WTFContext Context = new WTFContext();
         static void Main(string[] args)
-        { 
+        {
+            LoadConfig();
             Menu();
+        }
+
+        private static void LoadConfig()
+        {
+            
+
         }
 
         static void Menu()
@@ -29,6 +39,7 @@ namespace WhereTheFile
             Console.WriteLine("t) Show database statistics");
             Console.WriteLine("f) Find file");
             Console.WriteLine("d) Show duplicates");
+            Console.WriteLine("dd) Delete database!");
             Console.WriteLine("b) Backup scan database");
             Console.WriteLine("q) Exit");
             Console.WriteLine("Choice? ");
@@ -106,8 +117,8 @@ namespace WhereTheFile
 
         private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
         {
-            var context = new WTFContext();
-            var dupes = context.FilePaths.Where(d => d.Size > 1024 * 1024 * 5).AsEnumerable()
+            
+            var dupes = Context.FilePaths.Where(d => d.Size > 1024 * 1024 * 5).AsEnumerable()
                 .OrderByDescending(r => r.Size).GroupBy(r => r.Size)
                 .Where(g => g.Count() > 1);
 
@@ -134,11 +145,10 @@ namespace WhereTheFile
         
         private static void ShowStatistics()
         {
-            var context = new WTFContext();
             
-            float totalSize = context.FilePaths.Sum(f => f.Size);
-            var totalFiles = context.FilePaths.Count();
-            var largestFile = context.FilePaths.OrderByDescending(f=>f.Size).First();
+            float totalSize = Context.FilePaths.Sum(f => f.Size);
+            var totalFiles = Context.FilePaths.Count();
+            var largestFile = Context.FilePaths.OrderByDescending(f=>f.Size).First();
 
             Console.WriteLine();
             Console.WriteLine("Statistics:");
@@ -151,17 +161,16 @@ namespace WhereTheFile
         private static void BackupDatabase()
         {
             Console.WriteLine();
-            string databaseFile = "WTF_EF.db";
-            if (!File.Exists(databaseFile))
+
+            if (!File.Exists(Settings.DatabasePath))
             {
                 Console.WriteLine("Database doesn't exist yet");
                 Console.WriteLine();
                 Menu();
             }
 
-            File.Copy(databaseFile, $"{databaseFile}.bak");
-            string fullPath = Path.GetFullPath($"{databaseFile}.bak");
-            Console.WriteLine($"Backed up to {fullPath}");
+            File.Copy(Settings.DatabasePath, $"{Settings.DatabasePath}.bak");
+            Console.WriteLine($"Backed up to {Settings.DatabasePath}.bak");
             Menu();
         }
 
@@ -183,6 +192,7 @@ namespace WhereTheFile
                 Menu();
             }
 
+            //TODO: this isn't correct, should be looking up the GUID from the file if it exists
             var choiceDrive =
                 drives.FirstOrDefault(d => d.StartsWith(choice, StringComparison.InvariantCultureIgnoreCase));
 
@@ -213,17 +223,34 @@ namespace WhereTheFile
 
         static void ScanFiles(string path)
         {
-            DriveInfo drive = ScannedDrives.First(d => path.StartsWith(d.CurrentDriveLetter));
             WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
+            ScannedDrives = GetOrGenerateDriveGuids();
+            
+            //TODO: this won't work with scanning a path rather than a drive
+            string selectedDriveId = ScannedDrives.Single(d => d.CurrentDriveLetter.Contains(path,StringComparison.InvariantCultureIgnoreCase)).GeneratedGuid; //Can't seem to do case insensitive compare against SQLite itself.
+            DriveInfo drive = Context.Drives.Single(d => d.GeneratedGuid == selectedDriveId);
+
+            Console.WriteLine("Adding drives to database if needed");
+            Context.Drives.AddRange(ScannedDrives.Where(d => !Context.Drives.Contains(d)));
+            int changes = Context.SaveChanges();
+            Console.WriteLine($"{changes} changes made");
 
             FileSystemEnumerable<ScannedFileInfo> fse =
                 new FileSystemEnumerable<ScannedFileInfo>(path,
-                    (ref FileSystemEntry entry) => new ScannedFileInfo() {FullPath = entry.ToFullPath(), Size = entry.Length, Drive = drive},
+                    (ref FileSystemEntry entry) => new ScannedFileInfo() {FullPath = entry.ToFullPath(), Size = entry.Length, Drive = drive, Attributes = entry.Attributes},
                     new EnumerationOptions() {RecurseSubdirectories = true});
 
-            var context = new WTFContext();
-            context.FilePaths.AddRange(fse);
-            context.SaveChanges();
+            using (var scanContext = new WTFContext())
+            {
+                //FileSystemEnumerable seems to return directories, and the file size is set to the total of all files in that directory.
+                //Exclude them for now.
+                scanContext.Attach(drive);
+                scanContext.FilePaths.AddRange(fse.Where(file => !file.Attributes.HasFlag(FileAttributes.Directory)));
+                int fileChanges = scanContext.SaveChanges();
+                Console.WriteLine($"{fileChanges} files added to the database");
+            }
+
+           
         }
 
         static List<DriveInfo> GetOrGenerateDriveGuids()
