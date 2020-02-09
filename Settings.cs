@@ -12,6 +12,7 @@ namespace WhereTheFile
         public static string DatabasePath = Path.Join(BaseAppDataPath, "WTF_EF.db");
         public Settings()
         {
+            Console.WriteLine($"Config path is {BaseAppDataPath}");
             if (!Directory.Exists(BaseAppDataPath))
             {
                 Directory.CreateDirectory(BaseAppDataPath);

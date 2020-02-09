@@ -33,6 +33,7 @@ namespace WhereTheFile
 
         static void Menu()
         {
+            //todo: this doesn't need admin/root on Linux
             Console.WriteLine("i) Generate GUIDs for drives (requires Admin the first time around)");
             Console.WriteLine("s) Scan all drives");
             Console.WriteLine("ss) Scan specific drive only");
@@ -47,7 +48,7 @@ namespace WhereTheFile
             switch (choice)
             {
                 case "i":
-                    GetOrGenerateDriveGuids();
+                    DriveGuids.GetOrGenerateDriveGuids();
                     Menu();
                     break;
                 case "s":
@@ -212,7 +213,7 @@ namespace WhereTheFile
         static void ScanAllDrives()
         {
             drives = System.IO.Directory.GetLogicalDrives();
-            ScannedDrives = GetOrGenerateDriveGuids();
+            ScannedDrives = DriveGuids.GetOrGenerateDriveGuids();
 
             foreach (string drive in drives)
             {
@@ -224,7 +225,7 @@ namespace WhereTheFile
         static void ScanFiles(string path)
         {
             WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
-            ScannedDrives = GetOrGenerateDriveGuids();
+            ScannedDrives = DriveGuids.GetOrGenerateDriveGuids();
             
             //TODO: this won't work with scanning a path rather than a drive
             string selectedDriveId = ScannedDrives.Single(d => d.CurrentDriveLetter.Contains(path,StringComparison.InvariantCultureIgnoreCase)).GeneratedGuid; //Can't seem to do case insensitive compare against SQLite itself.
@@ -253,30 +254,7 @@ namespace WhereTheFile
            
         }
 
-        static List<DriveInfo> GetOrGenerateDriveGuids()
-        {
-            //This is far easier than trying to get the drive serial number, but I guess I'll have to do that eventually
-            List<DriveInfo> scannedDrives = new List<DriveInfo>();
-            drives = System.IO.Directory.GetLogicalDrives();
-            foreach (string drive in drives)
-            {
-                string guid = String.Empty;
-                string path = Path.Join(drive, ".wtf");
-                if (File.Exists(path))
-                {
-                    guid = File.ReadAllText(path);
-                }
-
-                else
-                {
-                    guid = Guid.NewGuid().ToString();
-                    File.WriteAllText(path,guid);
-                }
-                scannedDrives.Add(new DriveInfo() { CurrentDriveLetter = drive, GeneratedGuid = guid, HasBeenScanned = false});
-            }
-
-            return scannedDrives;
-        }
+        
     }
 }
 
