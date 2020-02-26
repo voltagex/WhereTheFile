@@ -27,7 +27,7 @@ namespace WhereTheFile
 
         private static void LoadConfig()
         {
-            
+
 
         }
 
@@ -118,7 +118,7 @@ namespace WhereTheFile
 
         private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
         {
-            
+
             var dupes = Context.FilePaths.Where(d => d.Size > 1024 * 1024 * 5).AsEnumerable()
                 .OrderByDescending(r => r.Size).GroupBy(r => r.Size)
                 .Where(g => g.Count() > 1);
@@ -128,7 +128,7 @@ namespace WhereTheFile
             {
                 dupes = dupes.OrderByDescending(g => g.Count());
             }
-            
+
             foreach (var dupe in dupes)
             {
                 //TODO: handle filenames much smarter than this
@@ -139,17 +139,17 @@ namespace WhereTheFile
                 {
                     Console.WriteLine(entry.FullPath);
                 }
-                
+
                 Console.WriteLine();
             }
         }
-        
+
         private static void ShowStatistics()
         {
-            
+
             float totalSize = Context.FilePaths.Sum(f => f.Size);
             var totalFiles = Context.FilePaths.Count();
-            var largestFile = Context.FilePaths.OrderByDescending(f=>f.Size).First();
+            var largestFile = Context.FilePaths.OrderByDescending(f => f.Size).First();
 
             Console.WriteLine();
             Console.WriteLine("Statistics:");
@@ -226,20 +226,25 @@ namespace WhereTheFile
         {
             WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
             ScannedDrives = DriveGuids.GetOrGenerateDriveGuids();
-            
-            //TODO: this won't work with scanning a path rather than a drive
-            string selectedDriveId = ScannedDrives.Single(d => d.CurrentDriveLetter.Contains(path,StringComparison.InvariantCultureIgnoreCase)).GeneratedGuid; //Can't seem to do case insensitive compare against SQLite itself.
-            DriveInfo drive = Context.Drives.Single(d => d.GeneratedGuid == selectedDriveId);
 
             Console.WriteLine("Adding drives to database if needed");
             Context.Drives.AddRange(ScannedDrives.Where(d => !Context.Drives.Contains(d)));
             int changes = Context.SaveChanges();
             Console.WriteLine($"{changes} changes made");
 
+            //TODO: this won't work with scanning a path rather than a drive
+            string selectedDriveId = ScannedDrives.Single(d => d.CurrentDriveLetter.Contains(path, StringComparison.InvariantCultureIgnoreCase)).GeneratedGuid; //Can't seem to do case insensitive compare against SQLite itself.
+            DriveInfo drive = Context.Drives.Single(d => d.GeneratedGuid == selectedDriveId);
+
+
+
             FileSystemEnumerable<ScannedFileInfo> fse =
                 new FileSystemEnumerable<ScannedFileInfo>(path,
-                    (ref FileSystemEntry entry) => new ScannedFileInfo() {FullPath = entry.ToFullPath(), Size = entry.Length, Drive = drive, Attributes = entry.Attributes},
-                    new EnumerationOptions() {RecurseSubdirectories = true});
+                    (ref FileSystemEntry entry) => new ScannedFileInfo() { FullPath = entry.ToFullPath(), Size = entry.Length, Drive = drive, Attributes = entry.Attributes },
+                    new EnumerationOptions() { RecurseSubdirectories = true })
+                {
+                    ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory
+                };
 
             using (var scanContext = new WTFContext())
             {
@@ -251,10 +256,10 @@ namespace WhereTheFile
                 Console.WriteLine($"{fileChanges} files added to the database");
             }
 
-           
+
         }
 
-        
+
     }
 }
 
