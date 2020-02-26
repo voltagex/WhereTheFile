@@ -9,7 +9,6 @@ using Microsoft.Extensions.Configuration;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 using WhereTheFile.Windows;
-using DriveInfo = WhereTheFile.Types.DriveInfo;
 
 namespace WhereTheFile
 {
@@ -21,22 +20,14 @@ namespace WhereTheFile
         private static WTFContext Context = new WTFContext();
         static void Main(string[] args)
         {
-            LoadConfig();
             Menu();
-        }
-
-        private static void LoadConfig()
-        {
-
-
         }
 
         static void Menu()
         {
-            //todo: this doesn't need admin/root on Linux
-            Console.WriteLine("i) Generate GUIDs for drives (requires Admin the first time around)");
             Console.WriteLine("s) Scan all drives");
             Console.WriteLine("ss) Scan specific drive only");
+            Console.WriteLine("sp) Scan single path");
             Console.WriteLine("t) Show database statistics");
             Console.WriteLine("f) Find file");
             Console.WriteLine("d) Show duplicates");
@@ -47,10 +38,6 @@ namespace WhereTheFile
             var choice = Console.ReadLine().Trim();
             switch (choice)
             {
-                case "i":
-                    DriveGuids.GetOrGenerateDriveGuids();
-                    Menu();
-                    break;
                 case "s":
                     ScanAllDrives();
                     Menu();
@@ -59,12 +46,20 @@ namespace WhereTheFile
                     DriveMenu();
                     Menu();
                     break;
+                case "sp":
+                    ScanSpecificPath();
+                    Menu();
+                    break;
                 case "b":
                     BackupDatabase();
                     Menu();
                     break;
                 case "d":
                     ShowDuplicates();
+                    Menu();
+                    break;
+                case "dd":
+                    DeleteDatabase();
                     Menu();
                     break;
                 case "f":
@@ -84,6 +79,36 @@ namespace WhereTheFile
                     Menu();
                     break;
             }
+        }
+
+        private static void DeleteDatabase()
+        {
+            Console.WriteLine("If you're really sure, type 'yes' and hit Enter: ");
+            string confirm = Console.ReadLine().Trim();
+            if (confirm.Equals("yes", StringComparison.InvariantCulture))
+            {
+                File.Delete(Settings.DatabasePath);
+                Console.WriteLine("Deleted.");
+            }
+
+
+        }
+
+        private static void ScanSpecificPath()
+        {
+            var context = new WTFContext();
+
+            Console.WriteLine();
+            Console.WriteLine("Enter a path to scan, or Enter to get back to the menu: ");
+
+            var scanPath = Console.ReadLine().Trim();
+
+            if (string.IsNullOrWhiteSpace(scanPath))
+            {
+                Menu();
+            }
+
+            ScanFiles(scanPath);
         }
 
         private static void FindFiles()
@@ -193,7 +218,6 @@ namespace WhereTheFile
                 Menu();
             }
 
-            //TODO: this isn't correct, should be looking up the GUID from the file if it exists
             var choiceDrive =
                 drives.FirstOrDefault(d => d.StartsWith(choice, StringComparison.InvariantCultureIgnoreCase));
 
@@ -213,7 +237,6 @@ namespace WhereTheFile
         static void ScanAllDrives()
         {
             drives = System.IO.Directory.GetLogicalDrives();
-            ScannedDrives = DriveGuids.GetOrGenerateDriveGuids();
 
             foreach (string drive in drives)
             {
@@ -225,22 +248,10 @@ namespace WhereTheFile
         static void ScanFiles(string path)
         {
             WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
-            ScannedDrives = DriveGuids.GetOrGenerateDriveGuids();
-
-            Console.WriteLine("Adding drives to database if needed");
-            Context.Drives.AddRange(ScannedDrives.Where(d => !Context.Drives.Contains(d)));
-            int changes = Context.SaveChanges();
-            Console.WriteLine($"{changes} changes made");
-
-            //TODO: this won't work with scanning a path rather than a drive
-            string selectedDriveId = ScannedDrives.Single(d => d.CurrentDriveLetter.Contains(path, StringComparison.InvariantCultureIgnoreCase)).GeneratedGuid; //Can't seem to do case insensitive compare against SQLite itself.
-            DriveInfo drive = Context.Drives.Single(d => d.GeneratedGuid == selectedDriveId);
-
-
 
             FileSystemEnumerable<ScannedFileInfo> fse =
                 new FileSystemEnumerable<ScannedFileInfo>(path,
-                    (ref FileSystemEntry entry) => new ScannedFileInfo() { FullPath = entry.ToFullPath(), Size = entry.Length, Drive = drive, Attributes = entry.Attributes },
+                    (ref FileSystemEntry entry) => new ScannedFileInfo() { FullPath = entry.ToFullPath(), Size = entry.Length, Attributes = entry.Attributes, FileCreated = entry.CreationTimeUtc.UtcDateTime },
                     new EnumerationOptions() { RecurseSubdirectories = true })
                 {
                     ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory
@@ -250,7 +261,6 @@ namespace WhereTheFile
             {
                 //FileSystemEnumerable seems to return directories, and the file size is set to the total of all files in that directory.
                 //Exclude them for now.
-                scanContext.Attach(drive);
                 scanContext.FilePaths.AddRange(fse.Where(file => !file.Attributes.HasFlag(FileAttributes.Directory)));
                 int fileChanges = scanContext.SaveChanges();
                 Console.WriteLine($"{fileChanges} files added to the database");

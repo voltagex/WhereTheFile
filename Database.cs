@@ -3,7 +3,6 @@ using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WhereTheFile.Types;
-using DriveInfo = WhereTheFile.Types.DriveInfo;
 
 namespace WhereTheFile.Database
 {
@@ -26,7 +25,7 @@ namespace WhereTheFile.Database
         }
 
         public DbSet<ScannedFileInfo> FilePaths { get; set; }
-        public DbSet<DriveInfo> Drives { get; set; }
+
 
         public WTFContext()
         {

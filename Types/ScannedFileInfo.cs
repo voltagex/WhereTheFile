@@ -15,11 +15,8 @@ namespace WhereTheFile.Types
 
         public long Size { get; set; }
 
-        [ForeignKey("Drive")]
-        public string DriveId { get; set; }
-
-        public DriveInfo Drive { get; set; }
-
         public FileAttributes Attributes { get; set; }
+
+        public DateTime FileCreated { get; set; }
     }
 }
