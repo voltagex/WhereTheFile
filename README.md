@@ -12,14 +12,14 @@ Hopefully a multi-machine file indexer for home users
 
 # Challenges
 
-* OneDrive - touching a file in the wrong way will cause a download when you probably don't want it
+* Drive identification - getting the drive serial on Windows is a real pain, https://github.com/unknownv2/CloudKit/blob/master/CloudKit.SteamKit/Util/Win32Helpers.cs one day. For the moment, I'm not identifying drives at all - just scanning and dumping filenames into a database
 
-* Drive identification - getting the drive serial on Windows is a real pain, https://github.com/unknownv2/CloudKit/blob/master/CloudKit.SteamKit/Util/Win32Helpers.cs one day.
+* RAM usage - I've seen upwards of 2GB of RAM usage for a complete scan.
 
 # To do
 
 * Hashing - originally I had planned to use XXHash, but this seems to cause problems on ARM devices (say, a NAS you might want to run this on)
-  The other thing with hashing is it makes Windows Defender sad. I think the best way forward is to only hash on filesize + filetype collisions, and put an upper + lower limit on filesizes that'll be considered for hashing
+  The other thing with hashing is it makes Windows Defender sad. I think the best way forward is to only hash on filesize + filetype collisions, and put an upper + lower limit on filesizes that'll be considered for hashing. Currently I'm thinking of just hashing files that are found as duplicates in the first pass (filesize+filename are the same). Could also experiment with only hashing the last megabyte of a file or something like that.
 
 
 * Linux support - There aren't too many changes to make but I wanted to get this up and running on my main Windows desktop first
