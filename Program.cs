@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Reflection.Metadata;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileSystemGlobbing.Internal;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 using WhereTheFile.Windows;
@@ -15,9 +17,8 @@ namespace WhereTheFile
     class Program
     {
         private static string[] drives;
-        private static List<DriveInfo> ScannedDrives;
         private static Settings Settings = new Settings();
-        private static WTFContext Context = new WTFContext();
+        private static FileIndexHelpers helpers = new FileIndexHelpers();
         static void Main(string[] args)
         {
             Menu();
@@ -38,6 +39,10 @@ namespace WhereTheFile
             var choice = Console.ReadLine().Trim();
             switch (choice)
             {
+                case "a":
+                    Test();
+                    Menu();
+                    break;
                 case "s":
                     ScanAllDrives();
                     Menu();
@@ -81,6 +86,16 @@ namespace WhereTheFile
             }
         }
 
+
+        private static void Test()
+        {
+            TextWriter original = Console.Out;
+            TextWriter writer = new StreamWriter(new FileStream("C:\\temp\\dupes.txt",FileMode.OpenOrCreate));
+            Console.SetOut(writer);
+            ShowDuplicates(true);
+            Console.SetOut(original);
+        }
+
         private static void DeleteDatabase()
         {
             Console.WriteLine("If you're really sure, type 'yes' and hit Enter: ");
@@ -94,11 +109,9 @@ namespace WhereTheFile
 
         }
 
-        private static void ScanSpecificPath()
-        {
-            var context = new WTFContext();
-
-            Console.WriteLine();
+        private static void ScanSpecificPath() 
+        { 
+        Console.WriteLine();
             Console.WriteLine("Enter a path to scan, or Enter to get back to the menu: ");
 
             var scanPath = Console.ReadLine().Trim();
@@ -108,7 +121,8 @@ namespace WhereTheFile
                 Menu();
             }
 
-            ScanFiles(scanPath);
+
+            var count = helpers.ScanFiles(scanPath);
         }
 
         private static void FindFiles()
@@ -125,7 +139,7 @@ namespace WhereTheFile
                 Menu();
             }
 
-            var results = context.FilePaths.Where(r => r.FullPath.Contains(search)).OrderByDescending(r => r.Size).AsEnumerable().GroupBy(r => r.Size);
+            var results = helpers.FindFilesByPath(search);
 
             foreach (var result in results)
             {
@@ -141,18 +155,11 @@ namespace WhereTheFile
             FindFiles();
         }
 
+
+
         private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
         {
-
-            var dupes = Context.FilePaths.Where(d => d.Size > 1024 * 1024 * 5).AsEnumerable()
-                .OrderByDescending(r => r.Size).GroupBy(r => r.Size)
-                .Where(g => g.Count() > 1);
-
-
-            if (orderByNumberOfDuplicates)
-            {
-                dupes = dupes.OrderByDescending(g => g.Count());
-            }
+            var dupes = helpers.GetDuplicates(orderByNumberOfDuplicates);
 
             foreach (var dupe in dupes)
             {
@@ -169,9 +176,10 @@ namespace WhereTheFile
             }
         }
 
+
         private static void ShowStatistics()
         {
-
+            var Context = new WTFContext();
             float totalSize = Context.FilePaths.Sum(f => f.Size);
             var totalFiles = Context.FilePaths.Count();
             var largestFile = Context.FilePaths.OrderByDescending(f => f.Size).First();
@@ -223,7 +231,7 @@ namespace WhereTheFile
 
             if (!string.IsNullOrEmpty(choiceDrive))
             {
-                ScanFiles(choiceDrive);
+                helpers.ScanFiles(choiceDrive);
             }
 
             else
@@ -241,33 +249,11 @@ namespace WhereTheFile
             foreach (string drive in drives)
             {
                 Console.WriteLine($"Scanning {drive}");
-                ScanFiles(drive);
+                helpers.ScanFiles(drive);
             }
         }
 
-        static void ScanFiles(string path)
-        {
-            WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
 
-            FileSystemEnumerable<ScannedFileInfo> fse =
-                new FileSystemEnumerable<ScannedFileInfo>(path,
-                    (ref FileSystemEntry entry) => new ScannedFileInfo() { FullPath = entry.ToFullPath(), Size = entry.Length, Attributes = entry.Attributes, FileCreated = entry.CreationTimeUtc.UtcDateTime },
-                    new EnumerationOptions() { RecurseSubdirectories = true })
-                {
-                    ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory
-                };
-
-            using (var scanContext = new WTFContext())
-            {
-                //FileSystemEnumerable seems to return directories, and the file size is set to the total of all files in that directory.
-                //Exclude them for now.
-                scanContext.FilePaths.AddRange(fse.Where(file => !file.Attributes.HasFlag(FileAttributes.Directory)));
-                int fileChanges = scanContext.SaveChanges();
-                Console.WriteLine($"{fileChanges} files added to the database");
-            }
-
-
-        }
 
 
     }
