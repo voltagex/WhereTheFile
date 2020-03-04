@@ -31,3 +31,5 @@ Hopefully a multi-machine file indexer for home users
 * Separate out the scanning and UI code
 
 * Ability to update database without doing a full rescan
+
+* The find duplicates function doesn't take filename into consideration, see [#1](https://github.com/voltagex/WhereTheFile/issues/1)
