@@ -7,18 +7,22 @@ using SQLitePCL;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 using WhereTheFile.Windows;
-
+using System.Runtime.InteropServices;
 public class FileIndexHelpers
 {
     private WTFContext _context = null;
     public FileIndexHelpers()
     {
         _context = new WTFContext();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2); //unhides OneDrive symlinks so we don't cause a download
+        }
     }
 
     public int ScanFiles(string path)
     {
-        WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2);
+        
 
         FileSystemEnumerable<ScannedFileInfo> fse =
             new FileSystemEnumerable<ScannedFileInfo>(path,
