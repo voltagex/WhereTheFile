@@ -11,9 +11,10 @@ using System.Runtime.InteropServices;
 public class FileIndexHelpers
 {
     private WTFContext _context = null;
-    public FileIndexHelpers()
+    public FileIndexHelpers(WTFContext context = null)
     {
-        _context = new WTFContext();
+        _context = context ?? new WTFContext();
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             WindowsInterop.RtlSetProcessPlaceholderCompatibilityMode(2); //unhides OneDrive symlinks so we don't cause a download
@@ -42,14 +43,14 @@ public class FileIndexHelpers
     }
 
 
-    public IEnumerable<IGrouping<long, ScannedFileInfo>> FindFilesByPath(string search)
+    public IEnumerable<ScannedFileInfo> FindFilesByPath(string search)
     {
-        return _context.FilePaths.Where(r => r.FullPath.Contains(search)).OrderByDescending(r => r.Size).AsEnumerable().GroupBy(r => r.Size);
+        return _context.FilePaths.Where(r => r.FullPath.Contains(search)).OrderByDescending(r => r.Size);
     }
 
-    public IEnumerable<IGrouping<long, ScannedFileInfo>> GetDuplicates(bool orderByNumberOfDuplicates)
+    public IEnumerable<IGrouping<long, ScannedFileInfo>> GetDuplicates(bool orderByNumberOfDuplicates, int excludeLessThanMegabytes = 5)
     {
-        var dupes = _context.FilePaths.Where(d => d.Size > 1024 * 1024 * 5).AsEnumerable()
+        var dupes = _context.FilePaths.Where(d => d.Size > 1024 * 1024 * excludeLessThanMegabytes).AsEnumerable()
             .OrderByDescending(r => r.Size).GroupBy(r => r.Size)
             .Where(g => g.Count() > 1);
 

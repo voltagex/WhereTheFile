@@ -8,17 +8,12 @@ namespace WhereTheFile.Database
 {
     public class WTFContext : DbContext
     { 
-        //public static readonly Microsoft.Extensions.Logging.LoggerFactory _myLoggerFactory =
-        //    new LoggerFactory(new[] { new Microsoft.Extensions.Logging.Debug.DebugLoggerProvider() },
-        //        new LoggerFilterOptions() { MinLevel = LogLevel.Information });
+
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            //optionsBuilder.UseLoggerFactory(_myLoggerFactory);
-
             if (!optionsBuilder.IsConfigured)
             {
-
                 var databasePath = Path.Join(Settings.BaseAppDataPath, "WTF_EF.db");
                 optionsBuilder.UseSqlite($"Data Source={databasePath}");
             }
@@ -27,9 +22,18 @@ namespace WhereTheFile.Database
         public DbSet<ScannedFileInfo> FilePaths { get; set; }
 
 
+        public WTFContext(DbContextOptions<WTFContext> options) : base(options)
+        {
+            var created = base.Database.EnsureCreated();
+            if (!base.Database.CanConnect())
+            {
+                throw new IOException("Can't connect to database with custom options");
+            }
+        }
+
         public WTFContext()
         {
-            base.Database.EnsureCreated();
+            
         }
     }
 }

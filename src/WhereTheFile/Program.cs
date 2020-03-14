@@ -1,16 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System;
 using System.IO;
-using System.IO.Enumeration;
 using System.Linq;
-using System.Reflection.Metadata;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.FileSystemGlobbing.Internal;
 using WhereTheFile.Database;
-using WhereTheFile.Types;
-using WhereTheFile.Windows;
 
 namespace WhereTheFile
 {
@@ -143,13 +134,8 @@ namespace WhereTheFile
 
             foreach (var result in results)
             {
-                string filename = result.First().FullPath.Split("\\").Last();
-                float megabytes = result.First().Size / 1024 / 1024;
-                Console.WriteLine($"{filename} ({megabytes} MB):");
-                foreach (var file in result)
-                {
-                    Console.WriteLine($"\t{file.FullPath}");
-                }
+                float megabytes = result.Size / 1024 / 1024;
+                Console.WriteLine($"{result.FullPath} ({megabytes} MB):");
             }
             Console.WriteLine();
             FindFiles();
