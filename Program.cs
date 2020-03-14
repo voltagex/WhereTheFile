@@ -182,12 +182,17 @@ namespace WhereTheFile
             var Context = new WTFContext();
             float totalSize = Context.FilePaths.Sum(f => f.Size);
             var totalFiles = Context.FilePaths.Count();
-            var largestFile = Context.FilePaths.OrderByDescending(f => f.Size).First();
+            var largestFile = Context.FilePaths.OrderByDescending(f => f.Size).FirstOrDefault();
 
             Console.WriteLine();
             Console.WriteLine("Statistics:");
-            Console.WriteLine($"{totalFiles} files indexed with a combined size of {(totalSize / 1024 / 1024)} megabytes ({totalSize / 1024 / 1024 / 1024} or {(totalSize / 1024 / 1024 / 1024 / 1024)} terabytes)");
-            Console.WriteLine($"The largest file indexed is {largestFile.FullPath} at {(largestFile.Size / 1024 / 1024)} megabytes");
+            Console.WriteLine($"{totalFiles} files indexed with a combined size of {(totalSize / 1024 / 1024)} megabytes ({totalSize / 1024 / 1024 / 1024} gigabytes or {(totalSize / 1024 / 1024 / 1024 / 1024)} terabytes)");
+            if (totalFiles > 0) //don't crash on an empty database
+            {
+                Console.WriteLine(
+                    $"The largest file indexed is {largestFile.FullPath} at {(largestFile.Size / 1024 / 1024)} megabytes");
+            }
+
             Console.WriteLine();
             Menu();
         }
