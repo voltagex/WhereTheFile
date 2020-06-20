@@ -23,8 +23,6 @@ public class FileIndexHelpers
 
     public int ScanFiles(string path)
     {
-        
-
         FileSystemEnumerable<ScannedFileInfo> fse =
             new FileSystemEnumerable<ScannedFileInfo>(path,
                 (ref FileSystemEntry entry) => new ScannedFileInfo() { FullPath = entry.ToFullPath(), Size = entry.Length, Attributes = entry.Attributes, FileCreated = entry.CreationTimeUtc.UtcDateTime },

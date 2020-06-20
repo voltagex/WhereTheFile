@@ -8,10 +8,9 @@ namespace WhereTheFile.Database
 {
     public class WTFContext : DbContext
     { 
-
-
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
+            
             if (!optionsBuilder.IsConfigured)
             {
                 var databasePath = Path.Join(Settings.BaseAppDataPath, "WTF_EF.db");
@@ -33,7 +32,7 @@ namespace WhereTheFile.Database
 
         public WTFContext()
         {
-            
+            base.Database.EnsureCreated();
         }
     }
 }
