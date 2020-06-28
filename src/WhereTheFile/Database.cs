@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -33,6 +34,12 @@ namespace WhereTheFile.Database
         public WTFContext()
         {
             base.Database.EnsureCreated();
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ScannedFileInfo>().Property(p => p.FileCreated)
+                .HasConversion(v => v.Ticks, v => new DateTime(v));
         }
     }
 }

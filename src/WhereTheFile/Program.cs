@@ -9,9 +9,10 @@ namespace WhereTheFile
     {
         private static string[] drives;
         private static Settings Settings = new Settings();
-        private static FileIndexHelpers helpers = new FileIndexHelpers();
+        private static FileIndexHelpers helpers;
         static void Main(string[] args)
         {
+
             Menu();
         }
 
@@ -165,20 +166,11 @@ namespace WhereTheFile
 
         private static void ShowStatistics()
         {
-            var Context = new WTFContext();
-            float totalSize = Context.FilePaths.Sum(f => f.Size);
-            var totalFiles = Context.FilePaths.Count();
-            var largestFile = Context.FilePaths.OrderByDescending(f => f.Size).FirstOrDefault();
+            var context = new WTFContext();
+            helpers = new FileIndexHelpers(context);
 
             Console.WriteLine();
-            Console.WriteLine("Statistics:");
-            Console.WriteLine($"{totalFiles} files indexed with a combined size of {(totalSize / 1024 / 1024)} megabytes ({totalSize / 1024 / 1024 / 1024} gigabytes or {(totalSize / 1024 / 1024 / 1024 / 1024)} terabytes)");
-            if (totalFiles > 0) //don't crash on an empty database
-            {
-                Console.WriteLine(
-                    $"The largest file indexed is {largestFile.FullPath} at {(largestFile.Size / 1024 / 1024)} megabytes");
-            }
-
+            Console.WriteLine(helpers.GenerateStatistics());
             Console.WriteLine();
             Menu();
         }
