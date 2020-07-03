@@ -35,7 +35,7 @@ namespace WhereTheFile.Tests
         [Test]
         public void TestDuplicatesFound()
         {
-            var dupes = new FileIndexHelpers(context).GetDuplicates(false, 0);
+            var dupes = context.GetDuplicates(false, 0);
             var files = dupes.SelectMany(d => d).ToList();
             var fileNames = files.Select(f => f.FullPath);
 
