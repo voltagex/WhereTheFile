@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using WhereTheFile.Database;
@@ -9,7 +10,6 @@ namespace WhereTheFile
     {
         private static string[] drives;
         private static Settings Settings = new Settings();
-        private static FileIndexHelpers helpers;
         static void Main(string[] args)
         {
 
@@ -78,7 +78,6 @@ namespace WhereTheFile
             }
         }
 
-
         private static void Test()
         {
             TextWriter original = Console.Out;
@@ -113,13 +112,11 @@ namespace WhereTheFile
                 Menu();
             }
 
-
-            var count = helpers.ScanFiles(scanPath);
+            ScanAndAdd(scanPath);
         }
 
         private static void FindFiles()
         {
-            var context = new WTFContext();
 
             Console.WriteLine();
             Console.WriteLine("Enter all or part of the path, or Enter to get back to the menu: ");
@@ -131,46 +128,50 @@ namespace WhereTheFile
                 Menu();
             }
 
-            var results = helpers.FindFilesByPath(search);
-
-            foreach (var result in results)
+            using (var context = new WTFContext())
             {
-                float megabytes = result.Size / 1024 / 1024;
-                Console.WriteLine($"{result.FullPath} ({megabytes} MB):");
+                var results = context.FindFilesByPath(search);
+
+                foreach (var result in results)
+                {
+                    float megabytes = result.Size / 1024 / 1024;
+                    Console.WriteLine($"{result.FullPath} ({megabytes} MB):");
+                }
+
+                Console.WriteLine();
+                FindFiles();
             }
-            Console.WriteLine();
-            FindFiles();
         }
 
 
 
         private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
         {
-            var dupes = helpers.GetDuplicates(orderByNumberOfDuplicates);
-
-            foreach (var dupe in dupes)
+            using (var context = new WTFContext())
             {
-                //TODO: handle filenames much smarter than this
-                string filename = dupe.First().FullPath.Split("\\").Last();
-                float megabytes = dupe.First().Size / 1024 / 1024;
-                Console.WriteLine($"{filename} ({megabytes} MB):");
-                foreach (var entry in dupe)
-                {
-                    Console.WriteLine(entry.FullPath);
-                }
+                var dupes = context.GetDuplicates(orderByNumberOfDuplicates);
 
-                Console.WriteLine();
+                foreach (var dupe in dupes)
+                {
+                    //TODO: handle filenames much smarter than this
+                    string filename = dupe.First().FullPath.Split("\\").Last();
+                    float megabytes = dupe.First().Size / 1024 / 1024;
+                    Console.WriteLine($"{filename} ({megabytes} MB):");
+                    foreach (var entry in dupe)
+                    {
+                        Console.WriteLine(entry.FullPath);
+                    }
+
+                    Console.WriteLine();
+                }
             }
         }
 
 
         private static void ShowStatistics()
         {
-            var context = new WTFContext();
-            helpers = new FileIndexHelpers(context);
-
             Console.WriteLine();
-            Console.WriteLine(helpers.GenerateStatistics());
+            Console.WriteLine(new WTFContext().GenerateStatistics());
             Console.WriteLine();
             Menu();
         }
@@ -214,7 +215,7 @@ namespace WhereTheFile
 
             if (!string.IsNullOrEmpty(choiceDrive))
             {
-                helpers.ScanFiles(choiceDrive);
+               ScanAndAdd(choiceDrive);
             }
 
             else
@@ -231,9 +232,28 @@ namespace WhereTheFile
 
             foreach (string drive in drives)
             {
-                Console.WriteLine($"Scanning {drive}");
-                helpers.ScanFiles(drive);
+                ScanAndAdd(drive);
             }
+        }
+
+        static void ScanAndAdd(string path)
+        {
+            //todo: remove all the console stuff out and pull this out to another class
+            Console.WriteLine($"Scanning {path}");
+            var watch = Stopwatch.StartNew();
+            var files = FileIndexHelpers.ScanFiles(path);
+            watch.Stop();
+
+            Console.WriteLine($"Scanned {files.Count} files in {watch.Elapsed}");
+
+            Console.WriteLine("Adding entries to database");
+            watch.Restart();
+            using (WTFContext context = new WTFContext())
+            {
+                context.FilePaths.AddRange(files);
+            }
+            watch.Stop();
+            Console.WriteLine($"Finished adding entries to database in {watch.Elapsed}");
         }
 
 
