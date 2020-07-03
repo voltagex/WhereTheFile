@@ -32,7 +32,6 @@ namespace WhereTheFile
 
         public static string GenerateStatistics(this WTFContext context)
         {
-
             //todo: return some kind of type instead of a string
 
             var totalSize = context.FilePaths.Sum(f => f.Size);

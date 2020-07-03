@@ -1,16 +1,14 @@
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-using NUnit.Framework;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 using static WhereTheFile.Tests.TestHelpers;
 
 namespace WhereTheFile.Tests
 {
-    public class Tests
+    public class InMemoryTests
     {
         private const int Megabyte = 1024 * 1024;
 
