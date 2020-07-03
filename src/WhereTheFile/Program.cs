@@ -2,7 +2,10 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using EFCore.BulkExtensions;
 using WhereTheFile.Database;
+using WhereTheFile.Types;
 
 namespace WhereTheFile
 {
@@ -12,6 +15,17 @@ namespace WhereTheFile
         private static Settings Settings = new Settings();
         static void Main(string[] args)
         {
+            if (Environment.GetEnvironmentVariable("DEBUG") != null)
+            {
+                {
+                    Console.WriteLine("Waiting for debugger");
+                    while (!Debugger.IsAttached)
+                    {
+                        Thread.Sleep(1000);
+                    }
+                    Debugger.Break();
+                }
+            }
 
             Menu();
         }
@@ -86,7 +100,6 @@ namespace WhereTheFile
             ShowDuplicates(true);
             Console.SetOut(original);
         }
-
         private static void DeleteDatabase()
         {
             Console.WriteLine("If you're really sure, type 'yes' and hit Enter: ");
@@ -143,8 +156,6 @@ namespace WhereTheFile
             }
         }
 
-
-
         private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
         {
             using (var context = new WTFContext())
@@ -166,7 +177,6 @@ namespace WhereTheFile
                 }
             }
         }
-
 
         private static void ShowStatistics()
         {
@@ -228,10 +238,12 @@ namespace WhereTheFile
 
         static void ScanAllDrives()
         {
+            //todo: fix this for Linux - https://github.com/dotnet/runtime/issues/32054
             drives = System.IO.Directory.GetLogicalDrives();
 
             foreach (string drive in drives)
             {
+
                 ScanAndAdd(drive);
             }
         }
@@ -250,7 +262,8 @@ namespace WhereTheFile
             watch.Restart();
             using (WTFContext context = new WTFContext())
             {
-                context.FilePaths.AddRange(files);
+                context.BulkInsert(files);
+                context.SaveChanges();
             }
             watch.Stop();
             Console.WriteLine($"Finished adding entries to database in {watch.Elapsed}");

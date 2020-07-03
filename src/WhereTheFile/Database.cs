@@ -1,21 +1,25 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using WhereTheFile.Types;
 
 namespace WhereTheFile.Database
 {
     public class WTFContext : DbContext
     { 
+       
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            
+            var loggerFactory = LoggerFactory.Create(l => l.AddConsole());
             if (!optionsBuilder.IsConfigured)
             {
                 var databasePath = Path.Join(Settings.BaseAppDataPath, "WTF_EF.db");
-                optionsBuilder.UseSqlite($"Data Source={databasePath}");
+                optionsBuilder.UseSqlite($"Data Source={databasePath}").UseLoggerFactory(loggerFactory);
             }
         }
 
@@ -24,7 +28,7 @@ namespace WhereTheFile.Database
 
         public WTFContext(DbContextOptions<WTFContext> options) : base(options)
         {
-            var created = base.Database.EnsureCreated();
+            base.Database.EnsureCreated();
             if (!base.Database.CanConnect())
             {
                 throw new IOException("Can't connect to database with custom options");

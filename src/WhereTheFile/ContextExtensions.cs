@@ -50,6 +50,15 @@ namespace WhereTheFile
                     $"The largest file indexed is {largestFile.FullPath} at {(largestFile.Size / 1024 / 1024)} megabytes");
             }
 
+            var topTen = context.FilePaths.OrderByDescending(f => f.Size).Take(10);
+
+            builder.AppendLine();
+            builder.AppendLine("Top ten largest files:");
+            foreach (var topFile in topTen)
+            {
+                builder.AppendLine($"{topFile.FullPath}: {(topFile.Size / 1024 / 1024)} megabytes)");
+            }
+
             return builder.ToString();
         }
     }
