@@ -1,17 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Runtime.InteropServices;
+using WhereTheFile.Database;
 using WhereTheFile.Types;
 using WhereTheFile.Windows;
 
 namespace WhereTheFile
 {
-    //todo: where should ScanFiles actually live?
-    public static class FileIndexHelpers
+    public class WindowsPathScanner : IFileScanner
     {
-        public static List<ScannedFileInfo> ScanFiles(string path)
+        public List<ScannedFileInfo> ScanFiles(string path)
         {
 
             //todo: don't run this every time?
@@ -37,6 +38,8 @@ namespace WhereTheFile
 
             return list;
         }
+
+
 
 
 

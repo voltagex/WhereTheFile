@@ -14,10 +14,9 @@ namespace WhereTheFile.Tests
 
         private WTFContext context = null;
 
-        [SetUp]
-        public void Setup()
+        [Test]
+        public void TestDuplicatesFound()
         {
-            context = CreateMemoryBackedContext();
             List<ScannedFileInfo> testFiles = new List<ScannedFileInfo>()
             {
                 CreateTestFile(@"T:\folder1\a", 4*Megabyte),
@@ -26,14 +25,7 @@ namespace WhereTheFile.Tests
                 CreateTestFile(@"T:\folder2\d", 2*Megabyte),
             };
 
-            context.FilePaths.AddRange(testFiles);
-            context.SaveChanges();
-        }
-
-        [Test]
-        public void TestDuplicatesFound()
-        {
-            var dupes = context.GetDuplicates(false, 0);
+            var dupes = testFiles.GetDuplicates(false, 0);
             var files = dupes.SelectMany(d => d).ToList();
             var fileNames = files.Select(f => f.FullPath);
 

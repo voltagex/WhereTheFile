@@ -10,16 +10,18 @@ namespace WhereTheFile.Tests
         {
             var context = CreateMemoryBackedContextFromSQL("Data\\kernel.sql");
             TestContext.WriteLine($"loaded {context.FilePaths.Count()} records");
-            TestContext.WriteLine(context.GenerateStatistics());
+            TestContext.WriteLine(context.FilePaths.GenerateStatistics());
         }
 
         [Test]
         public void ScanC()
         {
             var context = CreateMemoryBackedContext();
-            var files  = FileIndexHelpers.ScanFiles("C:\\");
+            var scanner = new WindowsPathScanner();
+            var files  = scanner.ScanFiles("C:\\");
             context.FilePaths.AddRange(files);
-            TestContext.WriteLine($"loaded {context.FilePaths.Count()} records");
+            var count = context.SaveChanges();
+            TestContext.WriteLine($"loaded {count} records");
         }
     }
 }

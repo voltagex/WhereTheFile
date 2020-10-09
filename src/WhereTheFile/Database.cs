@@ -10,14 +10,18 @@ using WhereTheFile.Types;
 
 namespace WhereTheFile.Database
 {
-    public class WTFContext : DbContext
-    { 
-       
+    public class WTFContext : DbContext, IWTFContext
+    {
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var loggerFactory = LoggerFactory.Create(l => l.AddConsole());
             if (!optionsBuilder.IsConfigured)
             {
+                if (!Directory.Exists(Settings.BaseAppDataPath))
+                {
+                    Directory.CreateDirectory(Settings.BaseAppDataPath);
+                }
                 var databasePath = Path.Join(Settings.BaseAppDataPath, "WTF_EF.db");
                 optionsBuilder.UseSqlite($"Data Source={databasePath}").UseLoggerFactory(loggerFactory);
             }

@@ -4,6 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using EFCore.BulkExtensions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Serilog;
 using WhereTheFile.Database;
 using WhereTheFile.Types;
 
@@ -13,6 +17,8 @@ namespace WhereTheFile
     {
         private static string[] drives;
         private static Settings Settings = new Settings();
+        private static IFileScanner scanner;
+
         static void Main(string[] args)
         {
             if (Environment.GetEnvironmentVariable("DEBUG") != null)
@@ -27,251 +33,38 @@ namespace WhereTheFile
                 }
             }
 
-            Menu();
-        }
+            var builder = new ConfigurationBuilder();
+            BuildConfig(builder);
 
-        static void Menu()
-        {
-            Console.WriteLine("s) Scan all drives");
-            Console.WriteLine("ss) Scan specific drive only");
-            Console.WriteLine("sp) Scan single path");
-            Console.WriteLine("t) Show database statistics");
-            Console.WriteLine("f) Find file");
-            Console.WriteLine("d) Show duplicates");
-            Console.WriteLine("dd) Delete database!");
-            Console.WriteLine("b) Backup scan database");
-            Console.WriteLine("q) Exit");
-            Console.WriteLine("Choice? ");
-            var choice = Console.ReadLine().Trim();
-            switch (choice)
-            {
-                case "a":
-                    Test();
-                    Menu();
-                    break;
-                case "s":
-                    ScanAllDrives();
-                    Menu();
-                    break;
-                case "ss":
-                    DriveMenu();
-                    Menu();
-                    break;
-                case "sp":
-                    ScanSpecificPath();
-                    Menu();
-                    break;
-                case "b":
-                    BackupDatabase();
-                    Menu();
-                    break;
-                case "d":
-                    ShowDuplicates();
-                    Menu();
-                    break;
-                case "dd":
-                    DeleteDatabase();
-                    Menu();
-                    break;
-                case "f":
-                    FindFiles();
-                    Menu();
-                    break;
-                case "t":
-                    ShowStatistics();
-                    Menu();
-                    break;
-                case "q":
-                    Environment.Exit(0);
-                    break;
-                default:
-                    Console.WriteLine();
-                    Console.WriteLine("Invalid choice");
-                    Menu();
-                    break;
-            }
-        }
+            Log.Logger = new LoggerConfiguration()
+                //.ReadFrom.Configuration(builder.Build())
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .CreateLogger();
 
-        private static void Test()
-        {
-            TextWriter original = Console.Out;
-            TextWriter writer = new StreamWriter(new FileStream("C:\\temp\\dupes.txt",FileMode.OpenOrCreate));
-            Console.SetOut(writer);
-            ShowDuplicates(true);
-            Console.SetOut(original);
-        }
-        private static void DeleteDatabase()
-        {
-            Console.WriteLine("If you're really sure, type 'yes' and hit Enter: ");
-            string confirm = Console.ReadLine().Trim();
-            if (confirm.Equals("yes", StringComparison.InvariantCulture))
-            {
-                File.Delete(Settings.DatabasePath);
-                Console.WriteLine("Deleted.");
-            }
+            Log.Logger.Information("Starting Application");
 
-
-        }
-
-        private static void ScanSpecificPath() 
-        { 
-        Console.WriteLine();
-            Console.WriteLine("Enter a path to scan, or Enter to get back to the menu: ");
-
-            var scanPath = Console.ReadLine().Trim();
-
-            if (string.IsNullOrWhiteSpace(scanPath))
-            {
-                Menu();
-            }
-
-            ScanAndAdd(scanPath);
-        }
-
-        private static void FindFiles()
-        {
-
-            Console.WriteLine();
-            Console.WriteLine("Enter all or part of the path, or Enter to get back to the menu: ");
-
-            var search = Console.ReadLine().Trim();
-
-            if (string.IsNullOrWhiteSpace(search))
-            {
-                Menu();
-            }
-
-            using (var context = new WTFContext())
-            {
-                var results = context.FindFilesByPath(search);
-
-                foreach (var result in results)
+            var host = Host.CreateDefaultBuilder()
+                .ConfigureServices((context, services) =>
                 {
-                    float megabytes = result.Size / 1024 / 1024;
-                    Console.WriteLine($"{result.FullPath} ({megabytes} MB):");
-                }
+                    services.AddSingleton<IWTFContext, WTFContext>();
+                    services.AddTransient<IFileScanner, WindowsPathScanner>();
+                })
+                .UseSerilog()
+                .Build();
+            Log.Logger.Information("Services configured");
 
-                Console.WriteLine();
-                FindFiles();
-            }
+            var service = ActivatorUtilities.CreateInstance<ConsoleMenuService>(host.Services);
+            service.Menu();
         }
 
-        private static void ShowDuplicates(bool orderByNumberOfDuplicates = false)
+        static void BuildConfig(IConfigurationBuilder builder)
         {
-            using (var context = new WTFContext())
-            {
-                var dupes = context.GetDuplicates(orderByNumberOfDuplicates);
-
-                foreach (var dupe in dupes)
-                {
-                    //TODO: handle filenames much smarter than this
-                    string filename = dupe.First().FullPath.Split("\\").Last();
-                    float megabytes = dupe.First().Size / 1024 / 1024;
-                    Console.WriteLine($"{filename} ({megabytes} MB):");
-                    foreach (var entry in dupe)
-                    {
-                        Console.WriteLine(entry.FullPath);
-                    }
-
-                    Console.WriteLine();
-                }
-            }
+            builder.SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+                .AddEnvironmentVariables();
         }
-
-        private static void ShowStatistics()
-        {
-            Console.WriteLine();
-            Console.WriteLine(new WTFContext().GenerateStatistics());
-            Console.WriteLine();
-            Menu();
-        }
-
-        private static void BackupDatabase()
-        {
-            Console.WriteLine();
-
-            if (!File.Exists(Settings.DatabasePath))
-            {
-                Console.WriteLine("Database doesn't exist yet");
-                Console.WriteLine();
-                Menu();
-            }
-
-            File.Copy(Settings.DatabasePath, $"{Settings.DatabasePath}.bak");
-            Console.WriteLine($"Backed up to {Settings.DatabasePath}.bak");
-            Menu();
-        }
-
-        static void DriveMenu()
-        {
-            Console.WriteLine();
-            Console.WriteLine("Scan a specific drive, or hit Enter to exit:");
-            drives = System.IO.Directory.GetLogicalDrives();
-            foreach (string drive in drives)
-            {
-                Console.WriteLine(drive);
-            }
-
-            Console.WriteLine("Choice? (enter letter only)");
-            var choice = Console.ReadLine().Trim();
-
-            if (string.IsNullOrEmpty(choice))
-            {
-                Menu();
-            }
-
-            var choiceDrive =
-                drives.FirstOrDefault(d => d.StartsWith(choice, StringComparison.InvariantCultureIgnoreCase));
-
-            if (!string.IsNullOrEmpty(choiceDrive))
-            {
-               ScanAndAdd(choiceDrive);
-            }
-
-            else
-            {
-                Console.WriteLine($"Drive {choice} doesn't exist");
-                DriveMenu();
-            }
-
-        }
-
-        static void ScanAllDrives()
-        {
-            //todo: fix this for Linux - https://github.com/dotnet/runtime/issues/32054
-            drives = System.IO.Directory.GetLogicalDrives();
-
-            foreach (string drive in drives)
-            {
-
-                ScanAndAdd(drive);
-            }
-        }
-
-        static void ScanAndAdd(string path)
-        {
-            //todo: remove all the console stuff out and pull this out to another class
-            Console.WriteLine($"Scanning {path}");
-            var watch = Stopwatch.StartNew();
-            var files = FileIndexHelpers.ScanFiles(path);
-            watch.Stop();
-
-            Console.WriteLine($"Scanned {files.Count} files in {watch.Elapsed}");
-
-            Console.WriteLine("Adding entries to database");
-            watch.Restart();
-            using (WTFContext context = new WTFContext())
-            {
-                context.BulkInsert(files);
-                context.SaveChanges();
-            }
-            watch.Stop();
-            Console.WriteLine($"Finished adding entries to database in {watch.Elapsed}");
-        }
-
-
-
-
     }
 }
 

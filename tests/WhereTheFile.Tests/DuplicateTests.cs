@@ -10,28 +10,23 @@ namespace WhereTheFile.Tests
     {
 
         private const int Megabyte = 1024 * 1024;
+ 
 
-        private WTFContext context = null;
+        [Test]
+        public void FindDuplicateWithSizeAndName()
 
-        [SetUp]
-        public void Setup()
         {
-            context = CreateMemoryBackedContext();
-            List<ScannedFileInfo> testFiles = new List<ScannedFileInfo>()
+            IEnumerable<ScannedFileInfo> testFiles = new List<ScannedFileInfo>()
             {
                 CreateTestFile(@"T:\same_size_different_name\a", 4*Megabyte),
                 CreateTestFile(@"T:\same_size_different_name\b", 4*Megabyte),
                 CreateTestFile(@"T:\same_name_different_size\c", 3*Megabyte),
                 CreateTestFile(@"T:\same_name_different_size\2\c", 2*Megabyte),
             };
+            var duplicates = testFiles.GetDuplicates(false);
+            
+            
 
-            context.FilePaths.AddRange(testFiles);
-            context.SaveChanges();
-        }
-
-        [Test]
-        public void FindDuplicateWithSizeAndName()
-        {
             Assert.Fail();
         }
     }

@@ -1,23 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using WhereTheFile.Database;
 using WhereTheFile.Types;
 
 namespace WhereTheFile
 {
-    public static class ContextExtensions
+    public static class ScannedFileInfoExtensions
     {
-        public static IEnumerable<ScannedFileInfo> FindFilesByPath(this WTFContext context, string search)
+        public static IEnumerable<ScannedFileInfo> FindFilesByPath(this IEnumerable<ScannedFileInfo> scannedFiles, string search)
         {
-            return context.FilePaths.Where(r => r.FullPath.Contains(search)).OrderByDescending(r => r.Size);
+            return scannedFiles.Where(r => r.FullPath.Contains(search)).OrderByDescending(r => r.Size);
         }
 
 
-        public static IEnumerable<IGrouping<long, ScannedFileInfo>> GetDuplicates(this WTFContext context, bool orderByNumberOfDuplicates, int excludeLessThanMegabytes = 5)
+        public static IEnumerable<IGrouping<long, ScannedFileInfo>> GetDuplicates(this IEnumerable<ScannedFileInfo> scannedFiles, bool orderByNumberOfDuplicates, int excludeLessThanMegabytes = 5)
         {
-            var dupes = context.FilePaths.Where(d => d.Size > 1024 * 1024 * excludeLessThanMegabytes).AsEnumerable()
+            var dupes = scannedFiles.Where(d => d.Size > 1024 * 1024 * excludeLessThanMegabytes).AsEnumerable()
                 .OrderByDescending(r => r.Size).GroupBy(r => r.Size)
                 .Where(g => g.Count() > 1);
 
@@ -30,13 +28,13 @@ namespace WhereTheFile
             return dupes;
         }
 
-        public static string GenerateStatistics(this WTFContext context)
+        public static string GenerateStatistics(this IEnumerable<ScannedFileInfo> scannedFiles)
         {
             //todo: return some kind of type instead of a string
 
-            var totalSize = context.FilePaths.Sum(f => f.Size);
-            var totalFiles = context.FilePaths.Count();
-            var largestFile = context.FilePaths.OrderByDescending(f => f.Size).FirstOrDefault();
+            var totalSize = scannedFiles.Sum(f => f.Size);
+            var totalFiles = scannedFiles.Count();
+            var largestFile = scannedFiles.OrderByDescending(f => f.Size).FirstOrDefault();
 
             StringBuilder builder = new StringBuilder();
 
@@ -49,7 +47,7 @@ namespace WhereTheFile
                     $"The largest file indexed is {largestFile.FullPath} at {(largestFile.Size / 1024 / 1024)} megabytes");
             }
 
-            var topTen = context.FilePaths.OrderByDescending(f => f.Size).Take(10);
+            var topTen = scannedFiles.OrderByDescending(f => f.Size).Take(10);
 
             builder.AppendLine();
             builder.AppendLine("Top ten largest files:");
