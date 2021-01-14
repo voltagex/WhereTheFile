@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -14,7 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WhereTheFile.Types\WhereTheFile.Types.csproj" />
-    <ProjectReference Include="..\..\src\WhereTheFile\WhereTheFile.csproj" />
+    <ProjectReference Include="..\..\WhereTheFile.Database\WhereTheFile.Database.csproj" />
+    <ProjectReference Include="..\..\WhereTheFile.Scanners\WhereTheFile.Scanners.csproj" />
   </ItemGroup>
 
   <ItemGroup>

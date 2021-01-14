@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using System.Linq;
+using WhereTheFile.Scanners;
 using static WhereTheFile.Tests.TestHelpers;
 namespace WhereTheFile.Tests
 {
@@ -17,9 +18,8 @@ namespace WhereTheFile.Tests
         public void ScanC()
         {
             var context = CreateMemoryBackedContext();
-            var scanner = new WindowsPathScanner();
+            var scanner = new WindowsPathScanner(context, null);
             var files  = scanner.ScanFiles("C:\\");
-            context.FilePaths.AddRange(files);
             var count = context.SaveChanges();
             TestContext.WriteLine($"loaded {count} records");
         }

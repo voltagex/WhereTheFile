@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices.ComTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -12,18 +11,29 @@ namespace WhereTheFile.Database
 {
     public class WTFContext : DbContext, IWTFContext
     {
+#if !DEBUG
+        private readonly string BaseAppDataPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WhereTheFile"); //todo: allow override from appsettings.json
+#else
+        private readonly string BaseAppDataPath = ".";
+#endif        
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            var loggerFactory = LoggerFactory.Create(l => l.AddConsole());
+
+            var loggerFactory = LoggerFactory.Create(l => l.AddConsole()); //todo: use injected logger?
             if (!optionsBuilder.IsConfigured)
             {
-                if (!Directory.Exists(Settings.BaseAppDataPath))
+                if (!Directory.Exists(BaseAppDataPath))
                 {
-                    Directory.CreateDirectory(Settings.BaseAppDataPath);
+                    Directory.CreateDirectory(BaseAppDataPath);
                 }
-                var databasePath = Path.Join(Settings.BaseAppDataPath, "WTF_EF.db");
+                var databasePath = Path.Join(BaseAppDataPath, "WTF_EF.db");
+                
                 optionsBuilder.UseSqlite($"Data Source={databasePath}").UseLoggerFactory(loggerFactory);
+#if DEBUG
+                Console.WriteLine(System.IO.Path.GetFullPath(databasePath)); 
+#endif
+                
             }
         }
 

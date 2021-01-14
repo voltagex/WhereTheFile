@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EFCore.BulkExtensions" Version="3.2.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\WhereTheFile.Types\WhereTheFile.Types.csproj" />
+    <ProjectReference Include="..\WhereTheFile.Database\WhereTheFile.Database.csproj" />
+  </ItemGroup>
+
+</Project>

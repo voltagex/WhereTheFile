@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using WhereTheFile.Types;
 
 namespace WhereTheFile
 {
     public interface IFileScanner
     {
-        public List<ScannedFileInfo> ScanFiles(string startPath);
+        public Task ScanFiles(string startPath);
+        public string[] GetStartPaths(string topLevelPath);
     }
 }

@@ -1,0 +1,122 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+
+
+<script>
+    function getSafeId(input) {
+        //todo: this is crap, will need something better for non-windows
+        return input.replace("\\", "_").replace(":", "");
+    }
+
+    function toggleVisibility(element) {
+        if (element.style.display == "block" || element.style.display == "") {
+            element.style.display = "none"
+        }
+        else {
+            element.style.display = "";
+        }
+    }
+    function createPathElement(pathString) {
+        var li = document.createElement("li")
+        var id = getSafeId(pathString);
+        li.title = id;
+        li.id = id;
+        li.dataset["path"] = pathString;
+        li.innerHTML = pathString + " ";
+
+        var a = document.createElement("a");
+        a.innerText = "scan";
+        a.href = "#";
+        a.onclick = function (e) { e.stopPropagation(); startscan(li.dataset["path"]); return false; };
+        li.appendChild(a);
+        li.onclick = function (e) {
+            e.stopPropagation();
+            if (li.dataset['scanned']) {
+                toggleVisibility(li.getElementsByTagName("ul")[0]);
+                return false;
+            }
+            getTopLevel(li.dataset['path']).then(data => { createFileStructure(data, li, li.id + "_next"); li.dataset['scanned'] = true });
+
+            return false;
+
+        };
+        return li;
+    }
+    function createFileStructure(pathArray, container, newElementName) {
+        var doc = document.createDocumentFragment();
+        var ul = document.createElement("ul")
+        ul.id = newElementName;
+
+        pathArray.map(function (path) { ul.appendChild(createPathElement(path)) });
+        doc.appendChild(ul);
+        container.appendChild(doc);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var fileBrowser = document.getElementById('badFileBrowser');
+        var structure = getTopLevel().then(data => { return createFileStructure(data, fileBrowser) });
+    });
+
+    async function postData(url = '', data = {}) {
+        // Default options are marked with *
+        const response = await fetch(url, {
+            method: 'POST', // *GET, POST, PUT, DELETE, etc.
+            mode: 'same-origin', // no-cors, *cors, same-origin
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+                // 'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: JSON.stringify(data) // body data type must match "Content-Type" header
+        });
+        return response.json(); // parses JSON response into native JavaScript objects
+    }
+
+
+
+    async function getData(url = '', data = {}) {
+        // Default options are marked with *
+        const response = await fetch(url, {
+            method: 'GET', // *GET, POST, PUT, DELETE, etc.
+            mode: 'same-origin', // no-cors, *cors, same-origin
+            headers: {
+                'Accept': 'application/json'
+                // 'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        });
+        return response.json(); // parses JSON response into native JavaScript objects
+    }
+
+
+    function startscan(path) {
+        postData("/api/scan/startscan", path).then(data => console.log(data));
+    }
+
+    function getFiles(start, stop) {
+        getData("/api/scan/").then(data => console.log(data));
+    }
+
+    function getTopLevel(start) {
+        var url = "/api/scan/toplevel";
+        if (start !== undefined) {
+            url += `/?start="${start}"`;
+        }
+        console.log(url);
+        return getData(url);
+    }
+
+
+</script>
+
+<div id="badFileBrowser">
+
+</div>
+
+@*<div class="text-center">
+    <button onclick="javascript:startscan()">Start</button>
+</div>
+
+<div>First 10 files in database</div>
+<div id="results"></div>*@
